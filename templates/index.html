@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="VisionAI Image Classifier — Upload any image and get instant AI-powered classification using Google's Vision Transformer model." />
+  <title>VisionAI — Image Classifier</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <!-- ===== Navbar ===== -->
+  <nav class="navbar-custom">
+    <div style="max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+      <a href="/" class="navbar-brand-custom">
+        <span class="brand-icon">🔬</span>
+        VisionAI
+      </a>
+      <div style="display: flex; gap: 0.5rem;">
+        <a href="/" class="nav-link-custom active" id="nav-home">Home</a>
+        <a href="/history" class="nav-link-custom" id="nav-history">📊 History</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Hero ===== -->
+  <main style="max-width: 720px; margin: 0 auto; padding: 0 1.5rem 3rem;">
+
+    <div class="page-hero animate-fade-in-up">
+      <h1>Image Classifier</h1>
+      <p>Upload any image and get an instant AI-powered classification powered by Google's Vision Transformer.</p>
+    </div>
+
+    <!-- ===== Upload Card ===== -->
+    <div class="glass-card animate-fade-in-up delay-1" style="padding: 2.5rem;">
+      <form action="/predict" method="post" enctype="multipart/form-data" id="upload-form">
+
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click();">
+          <span class="upload-icon">📁</span>
+          <h3>Drag & drop your image here</h3>
+          <p>or click to browse — JPEG, PNG, WEBP supported</p>
+
+          <img class="image-preview" id="image-preview" src="" alt="Preview" />
+          <div class="file-name-display" id="file-name">
+            <span>📎</span>
+            <span id="file-name-text"></span>
+          </div>
+        </div>
+
+        <input type="file" name="image" id="file-input" class="file-input-hidden" accept="image/*" required />
+
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 2rem;">
+          <button type="submit" class="btn-primary-custom" id="predict-btn" disabled>
+            <span id="btn-text">🤖 Classify Image</span>
+            <div class="spinner" id="spinner"></div>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== Quick Info Cards ===== -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem;">
+      <div class="glass-card stat-card animate-fade-in-up delay-2" style="text-align: center;">
+        <div class="stat-value">1000</div>
+        <div class="stat-label">Categories</div>
+      </div>
+      <div class="glass-card stat-card animate-fade-in-up delay-3" style="text-align: center;">
+        <div class="stat-value">ViT</div>
+        <div class="stat-label">Model</div>
+      </div>
+      <div class="glass-card stat-card animate-fade-in-up delay-4" style="text-align: center;">
+        <div class="stat-value">86M</div>
+        <div class="stat-label">Parameters</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="footer-custom">
+    <p>Built with 🧠 Flask &amp; Hugging Face Transformers &bull; VisionAI &copy; 2026</p>
+  </footer>
+
+  <script>
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const preview = document.getElementById('image-preview');
+    const fileName = document.getElementById('file-name');
+    const fileNameText = document.getElementById('file-name-text');
+    const predictBtn = document.getElementById('predict-btn');
+    const btnText = document.getElementById('btn-text');
+    const spinner = document.getElementById('spinner');
+    const form = document.getElementById('upload-form');
+
+    // Drag & drop events
+    ['dragenter', 'dragover'].forEach(evt => {
+      uploadZone.addEventListener(evt, e => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+      uploadZone.addEventListener(evt, e => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+      });
+    });
+
+    uploadZone.addEventListener('drop', e => {
+      const files = e.dataTransfer.files;
+      if (files.length) {
+        fileInput.files = files;
+        handleFileSelect(files[0]);
+      }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', e => {
+      if (e.target.files.length) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    function handleFileSelect(file) {
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        preview.classList.add('visible');
+      };
+      reader.readAsDataURL(file);
+
+      // Show file name
+      fileNameText.textContent = file.name;
+      fileName.classList.add('visible');
+
+      // Enable button
+      predictBtn.disabled = false;
+    }
+
+    // Submit loading state
+    form.addEventListener('submit', () => {
+      btnText.textContent = 'Classifying...';
+      spinner.style.display = 'block';
+      predictBtn.disabled = true;
+    });
+  </script>
+
+</body>
+</html>
