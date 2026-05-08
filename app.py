@@ -5,35 +5,48 @@ import os, sqlite3
 from model import classify_image
 from werkzeug.utils import secure_filename
 import uuid
+from database import insert_prediction
 
 app = Flask(__name__, instance_relative_config=True)
+
+API_KEY = os.getenv("API_KEY")
+
 # app.config['SQLALCHEMY_DATABASE_URI']= "sqlite:///classifier.db"
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS']= False
 # db= SQLAlchemy(app)
 
-from database import insert_prediction, fetch_history
-
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def init_db():
-    db_path = os.path.join(app.instance_path, "classifier.db")
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+# def init_db():
+#     db_path = os.path.join(app.instance_path, "classifier.db")
+#     conn = sqlite3.connect(db_path)
+#     cursor = conn.cursor()
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS predictions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        filename TEXT,
-        prediction TEXT,
-        confidence REAL
-    )
-    """)
+#     cursor.execute("""
+#     CREATE TABLE IF NOT EXISTS predictions (
+#         id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         filename TEXT,
+#         prediction TEXT,
+#         confidence REAL
+#     )
+#     """)
 
-    conn.commit()
-    conn.close()
+#     conn.commit()
+#     conn.close()
 
-init_db()
+# init_db()
+
+@app.before_request
+def check_api_key():
+
+    # Protect only /predict route
+    if request.endpoint == "predict":
+
+        key = request.headers.get("x-api-key")
+
+        if key != API_KEY:
+            return jsonify({"error": "Unauthorized"}), 401
 
 @app.route("/")
 def home():
@@ -54,6 +67,7 @@ def predict():
 
     try:
         result = classify_image(filepath)
+        insert_prediction(filename, result["prediction"], result["confidence"])
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
