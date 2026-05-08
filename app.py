@@ -1,5 +1,5 @@
 from PIL.ImagePalette import random
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 # from flask_sqlalchemy import SQLAlchemy 
 import os, sqlite3
 from model import classify_image
@@ -13,10 +13,8 @@ app = Flask(__name__, instance_relative_config=True)
 
 from database import insert_prediction, fetch_history
 
-UPLOAD_FOLDER = "static/uploads"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-os.makedirs(app.instance_path, exist_ok=True)
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def init_db():
     db_path = os.path.join(app.instance_path, "classifier.db")
@@ -39,26 +37,30 @@ init_db()
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return jsonify({"message": "Image Classifier API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+    
     file = request.files["image"]
     if file.filename == "":
-        return "No file selected"
-    filename = str(uuid.uuid4()) + "_" + secure_filename(file.filename)
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        return jsonify({"error": "Empty filename"}), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}_{filename}")
     file.save(filepath)
 
-    label, confidence = classify_image(filepath)
-    insert_prediction(filename, label, confidence)
+    try:
+        result = classify_image(filepath)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    return render_template("result.html", prediction=label, confidence=confidence, image=filepath)
-
-@app.route("/history")
-def history():
-    data = fetch_history()
-    return render_template("history.html", data=data)
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)

@@ -1,21 +1,16 @@
-from transformers import pipeline
-from PIL import Image
+import requests, os
 
-classifier = pipeline(
-    "image-classification",
-    model="google/vit-base-patch16-224",
-    device= -1
-)
+API_URL = "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"
+HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
 
 def classify_image(image_path):
-    image = Image.open(image_path).convert("RGB")
+    with open(image_path, "rb") as f:
+        response = requests.post(API_URL, headers=HEADERS, data=f)
+    
+    result = response.json()
 
-    results = classifier(image)
-
-    top_result = results[0]
-
-    label = top_result["label"]
-    confidence = round(top_result["score"] * 100, 2)
-
-    return label, confidence
+    return {
+        "label": result[0]["label"],
+        "confidence": result[0]["score"]
+    }
 
