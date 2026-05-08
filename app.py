@@ -1,11 +1,15 @@
-from PIL.ImagePalette import random
-from flask import Flask, render_template, request, jsonify
+# from PIL.ImagePalette import random
+from flask import Flask, request, jsonify
 # from flask_sqlalchemy import SQLAlchemy 
 import os, sqlite3
 from model import classify_image
 from werkzeug.utils import secure_filename
 import uuid
 from database import insert_prediction
+import traceback
+
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -40,6 +44,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @app.before_request
 def check_api_key():
 
+    print("EXPECTED:", API_KEY)
+    print("RECEIVED:", request.headers.get("x-api-key"))
+
     # Protect only /predict route
     if request.endpoint == "predict":
 
@@ -57,7 +64,7 @@ def predict():
     if "image" not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
-    file = request.files["image"]
+    file = request.files['image']
     if file.filename == "":
         return jsonify({"error": "Empty filename"}), 400
 
@@ -70,6 +77,7 @@ def predict():
         insert_prediction(filename, result["prediction"], result["confidence"])
         return jsonify(result)
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route("/health")
