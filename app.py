@@ -8,10 +8,16 @@ import uuid
 from database import insert_prediction
 import traceback
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_cors import CORS
+
 from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, instance_relative_config=True)
+
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 API_KEY = os.getenv("API_KEY")
 
@@ -20,6 +26,21 @@ API_KEY = os.getenv("API_KEY")
 # db= SQLAlchemy(app)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+
+CORS(
+    app,
+    resources={
+        r"/predict": {
+            "origins": []
+        }
+    }
+)
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["30 per minute"]
+)
 
 def allowed_file(filename):
     return "." in filename and \
@@ -66,17 +87,19 @@ def home():
     return jsonify({"message": "Image Classifier API is running"})
 
 @app.route("/predict", methods=["POST"])
+@limiter.limit("10 per minute")
 def predict():
     if not allowed_file(file.filename):
         return jsonify({
+            "success": False,
             "error": "Invalid file type"
         }), 400
     if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
+        return jsonify({ "success": False, "error": "No image uploaded"}), 400
     
     file = request.files['image']
     if file.filename == "":
-        return jsonify({"error": "Empty filename"}), 400
+        return jsonify({"success": False, "error": "Empty filename"}), 400
 
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}_{filename}")
@@ -96,6 +119,21 @@ def predict():
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
+
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({
+        "success": False,
+        "error": "File too large (max 10MB)"
+    }), 413
+
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "success": False,
+        "error": "Rate limit exceeded"
+    }), 429
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
