@@ -73,6 +73,7 @@ def classify_image(image_path):
     top_prediction = result[0]
 
     return {
+        "success": True,
         "prediction": top_prediction.label,
         "confidence": top_prediction.score
     }

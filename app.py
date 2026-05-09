@@ -19,6 +19,12 @@ API_KEY = os.getenv("API_KEY")
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS']= False
 # db= SQLAlchemy(app)
 
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+
+def allowed_file(filename):
+    return "." in filename and \
+        filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -44,8 +50,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @app.before_request
 def check_api_key():
 
-    print("EXPECTED:", API_KEY)
-    print("RECEIVED:", request.headers.get("x-api-key"))
+    # print("EXPECTED:", API_KEY)
+    # print("RECEIVED:", request.headers.get("x-api-key"))
 
     # Protect only /predict route
     if request.endpoint == "predict":
@@ -61,6 +67,10 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if not allowed_file(file.filename):
+        return jsonify({
+            "error": "Invalid file type"
+        }), 400
     if "image" not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
@@ -74,11 +84,14 @@ def predict():
 
     try:
         result = classify_image(filepath)
-        insert_prediction(filename, result["prediction"], result["confidence"])
+        insert_prediction(filename, result["prediction"], result["confidence"], result["success"])
         return jsonify(result)
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
 @app.route("/health")
 def health():
